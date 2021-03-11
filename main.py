@@ -37,6 +37,8 @@ def main():
 	pygame.init()
 	display = (500, 500)
 	screen = pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
+	
+	gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
 
 	while True:
 		for event in pygame.event.get():
