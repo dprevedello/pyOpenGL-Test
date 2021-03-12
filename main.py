@@ -14,10 +14,10 @@ def triangolo():
 	glBegin(GL_TRIANGLES)
 	glColor3f( 1, 0, 0 )
 	glVertex3f( -1, -1, 0 )
-	glColor3f( 0, 1, 0 )
-	glVertex3f( 0, 1, 0 )
 	glColor3f( 0, 0, 1 )
 	glVertex3f( 1, -1, 0 )
+	glColor3f( 0, 1, 0 )
+	glVertex3f( 0, 1, 0 )
 	glEnd()
 
 	glPopMatrix()
@@ -54,6 +54,9 @@ def main():
 
 	glMatrixMode(GL_PROJECTION)
 	gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
+
+	glEnable(GL_CULL_FACE)
+	glCullFace(GL_BACK)
 
 	glMatrixMode(GL_MODELVIEW)
 	zoom = 0
