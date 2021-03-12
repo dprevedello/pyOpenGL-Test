@@ -22,8 +22,8 @@ def triangolo():
 
 	glPopMatrix()
 
-
-def disegna(zoom, rotx, roty):
+animation_angle = 0
+def disegna(zoom, rotx, roty, animate):
 	glClearColor(0,0,0,1);
 	glClear(GL_COLOR_BUFFER_BIT)
 
@@ -35,10 +35,16 @@ def disegna(zoom, rotx, roty):
 	glRotatef(-rotx, 1, 0, 0)
 	glRotatef(-roty, 0, 1, 0)
 
+	global animation_angle
+	glRotatef(animation_angle, 0, 1, 0)
+	if animate:
+		animation_angle += 0.7
+
 	triangolo()
 	glPopMatrix()
 
 	pygame.display.flip()
+	pygame.time.wait(40)
 
 
 def main():
@@ -53,6 +59,7 @@ def main():
 	zoom = 0
 	old_x, old_y, rotx, roty = 0,0,0,0;
 	dragging = False
+	animate = False
 	while True:
 		for event in pygame.event.get():
 			# Uscita dal programma
@@ -62,18 +69,18 @@ def main():
 				return
 			if event.type == pygame.KEYUP and event.unicode == 'q':
 				return
-			
+
 			# Zoom in
 			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
-				zoom+=1
+				zoom += 1
 			if event.type == pygame.KEYDOWN and event.key == pygame.K_PLUS:
-				zoom+=0.5
+				zoom += 0.5
 
 			# Zoom out
 			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
-				zoom-=1
+				zoom -= 1
 			if event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
-				zoom-=0.5
+				zoom -= 0.5
 
 			# Rotazioni del modello
 			if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -88,7 +95,11 @@ def main():
 					old_x = event.pos[0]
 					old_y = event.pos[1]
 
-		disegna(zoom, rotx, roty)
+			# Animazione
+			if event.type == pygame.KEYUP and event.unicode == 'a':
+				animate = not animate
+
+		disegna(zoom, rotx, roty, animate)
 
 
 if __name__ == "__main__":
