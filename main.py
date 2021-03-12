@@ -22,6 +22,7 @@ def triangolo():
 
 	glPopMatrix()
 
+
 animation_angle = 0
 def disegna(zoom, rotx, roty, animate):
 	glClearColor(0,0,0,1);
@@ -38,13 +39,12 @@ def disegna(zoom, rotx, roty, animate):
 	global animation_angle
 	glRotatef(animation_angle, 0, 1, 0)
 	if animate:
-		animation_angle += 0.7
+		animation_angle += 1
 
 	triangolo()
 	glPopMatrix()
 
 	pygame.display.flip()
-	pygame.time.wait(40)
 
 
 def main():
@@ -60,6 +60,7 @@ def main():
 	old_x, old_y, rotx, roty = 0,0,0,0;
 	dragging = False
 	animate = False
+	clock = pygame.time.Clock()
 	while True:
 		for event in pygame.event.get():
 			# Uscita dal programma
@@ -99,7 +100,19 @@ def main():
 			if event.type == pygame.KEYUP and event.unicode == 'a':
 				animate = not animate
 
+			# Attivazione full screen
+			if event.type == pygame.KEYUP and event.unicode == 'f':
+				pygame.display.toggle_fullscreen()
+
+			# Azione all'evento di resize della schermata
+			if event.type == pygame.VIDEORESIZE:
+				glMatrixMode(GL_PROJECTION)
+				glLoadIdentity()
+				gluPerspective(45, float(event.w)/event.h, 0.1, 50.0)
+				glMatrixMode(GL_MODELVIEW)
+
 		disegna(zoom, rotx, roty, animate)
+		clock.tick(30)
 
 
 if __name__ == "__main__":
