@@ -91,6 +91,7 @@ def main():
 	dragging = False
 	animate = False
 	clock = pygame.time.Clock()
+	wireframe = False
 	while True:
 		for event in pygame.event.get():
 			# Uscita dal programma
@@ -140,6 +141,14 @@ def main():
 				glLoadIdentity()
 				gluPerspective(45, float(event.w)/event.h, 0.1, 50.0)
 				glMatrixMode(GL_MODELVIEW)
+
+			# Attivazione wireframe
+			if event.type == pygame.KEYUP and event.unicode == 'w':
+				if wireframe:
+					glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+				else:
+					glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+				wireframe = not wireframe
 
 		disegna(zoom, rotx, roty, animate)
 		clock.tick(30)
