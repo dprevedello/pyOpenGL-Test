@@ -1,5 +1,6 @@
 import sys
 import traceback
+import numpy as np
 
 import pygame
 from pygame.locals import *
@@ -8,19 +9,34 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 
 
+def toFloat(array):
+	return np.array(array, dtype='float32')
+
+
 def triangolo():
-	glPushMatrix()
+	vertici = [-1, -1, 0,
+				1, -1, 0,
+				0,	1, 0]
+	colori = [1, 0, 0,
+			  0, 0, 1,
+			  0, 1, 0]
 
-	glBegin(GL_TRIANGLES)
-	glColor3f( 1, 0, 0 )
-	glVertex3f( -1, -1, 0 )
-	glColor3f( 0, 0, 1 )
-	glVertex3f( 1, -1, 0 )
-	glColor3f( 0, 1, 0 )
-	glVertex3f( 0, 1, 0 )
-	glEnd()
+	vertex_bufferId = glGenBuffers(1)
+	glBindBuffer(GL_ARRAY_BUFFER, vertex_bufferId)
+	glBufferData(GL_ARRAY_BUFFER, 4*len(vertici), toFloat(vertici), GL_STATIC_DRAW)
+	glFinish()
+	glVertexPointer(3, GL_FLOAT, 0, None )
 
-	glPopMatrix()
+	color_bufferId = glGenBuffers(1)
+	glBindBuffer(GL_ARRAY_BUFFER, color_bufferId)
+	glBufferData(GL_ARRAY_BUFFER, 4*len(colori), toFloat(colori), GL_STATIC_DRAW)
+	glFinish()
+	glColorPointer(3, GL_FLOAT, 0, None )
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 
 
 animation_angle = 0
@@ -41,7 +57,16 @@ def disegna(zoom, rotx, roty, animate):
 	if animate:
 		animation_angle += 1
 
-	triangolo()
+	glPushMatrix()
+	glTranslatef(-1, 0, 0)
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glPopMatrix()
+
+	glPushMatrix()
+	glTranslatef(1, 0, 0)
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glPopMatrix()
+
 	glPopMatrix()
 
 	pygame.display.flip()
@@ -57,6 +82,8 @@ def main():
 
 	glEnable(GL_CULL_FACE)
 	glCullFace(GL_BACK)
+
+	triangolo()
 
 	glMatrixMode(GL_MODELVIEW)
 	zoom = 0
