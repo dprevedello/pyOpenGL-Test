@@ -8,30 +8,31 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
+from pywavefront import Wavefront
 
-def genera_cubo():
-	vertici = np.array([[ 1, -1, -1], [ 1,	1, -1], [-1,  1, -1], [-1, -1, -1],
-						[ 1, -1,  1], [ 1,	1,	1], [-1, -1,  1], [-1,	1,	1]], dtype='float32')
 
-	colori = np.array([[0,1,0], [0,0,1], [1,0,0], [1,1,1]], dtype='float32')
-
-	superfici = np.array([[3,2,1,0], [6,7,2,3], [4,5,7,6],
-						  [0,1,5,4], [2,7,5,1], [6,3,0,4]]).reshape(-1)
-
-	vbo1 = vertici[superfici].reshape(-1)
-	vbo2 = np.tile(colori, (6, 1)).reshape(-1)
+def carica_mesh(path):
+	mesh = Wavefront(path)
+	data = np.array([])
+	for m_item in mesh.mesh_list:
+		for mat in m_item.materials:
+			data = np.append(data, mat.vertices)
+	dim = len(data)//6
+	data = data.reshape(dim, 2, 3).astype(np.float32)
+	vertici = data[:,1].reshape(-1)
+	colori = data[:,0].reshape(-1)
 
 	vertex_bufferId = glGenBuffers(1)
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_bufferId)
-	glBufferData(GL_ARRAY_BUFFER, 4*len(vbo1), vbo1, GL_STATIC_DRAW)
+	glBufferData(GL_ARRAY_BUFFER, 4*len(vertici), vertici, GL_STATIC_DRAW)
 
 	color_bufferId = glGenBuffers(1)
 	glBindBuffer(GL_ARRAY_BUFFER, color_bufferId)
-	glBufferData(GL_ARRAY_BUFFER, 4*len(vbo2), vbo2, GL_STATIC_DRAW)
+	glBufferData(GL_ARRAY_BUFFER, 4*len(colori), colori, GL_STATIC_DRAW)
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-	return {'v':vertex_bufferId, 'c':color_bufferId, 'type':GL_QUADS, 'len':len(superfici)}
+	return {'v':vertex_bufferId, 'c':color_bufferId, 'type':GL_TRIANGLES, 'len':dim}
 
 
 def disegna_mesh(mesh, colore=None):
@@ -74,10 +75,6 @@ def disegna(zoom, rotx, roty, animate, wireframe, mesh):
 		animation_angle += 1
 
 	disegna_mesh(mesh)
-	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE )
-	disegna_mesh(mesh, [1,1,1])
-	if not wireframe:
-		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL )
 
 	glPopMatrix()
 
@@ -96,7 +93,7 @@ def main():
 	glCullFace(GL_BACK)
 	glEnable(GL_DEPTH_TEST)
 
-	mesh = genera_cubo()
+	mesh = carica_mesh('./mesh/box-C3F_V3F.obj')
 
 	glMatrixMode(GL_MODELVIEW)
 	zoom = 0
