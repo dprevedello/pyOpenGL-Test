@@ -1,6 +1,7 @@
 import sys
 import traceback
 import numpy as np
+import glm
 
 import pygame
 from pygame.locals import *
@@ -11,7 +12,76 @@ from OpenGL.GLU import *
 from pywavefront import Wavefront
 
 
+vertex_shader = """
+#version 330 core
+
+// Dati in input, variabili per ciascun vertice
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec3 vertexColor;
+
+// Dati in output, interpolati per ciascun frammento
+out vec3 fragmentColor;
+
+// Valori passati allo shader che rimangono costanti
+uniform mat4 MVP;
+
+void main(){
+	// Calcolo della posizione del vertice in clip space: MVP * position
+	gl_Position =  MVP * vec4(vertexPosition_modelspace, 1);
+
+	// Il colore di ciascun vertice viene interpolato per
+	// ottenere il colore di ciascun frammento
+	fragmentColor = vertexColor;
+}
+"""
+
+fragment_shader = """
+#version 330 core
+
+// Valori interpolati forniti dal vertex shader
+in vec3 fragmentColor;
+
+// Dati in output
+out vec3 color;
+
+void main(){
+	color = fragmentColor;
+}
+"""
+
+
+def compile_shaders():
+	# create program
+	program = glCreateProgram()
+
+	# vertex shader
+	vs = glCreateShader(GL_VERTEX_SHADER)
+	glShaderSource(vs, vertex_shader)
+	glCompileShader(vs)
+	if GL_TRUE != glGetShaderiv(vs, GL_COMPILE_STATUS):
+		print(glGetShaderInfoLog(vs))
+	glAttachShader(program, vs)
+
+	# fragment shader
+	fs = glCreateShader(GL_FRAGMENT_SHADER)
+	glShaderSource(fs, fragment_shader)
+	glCompileShader(fs)
+	if GL_TRUE != glGetShaderiv(vs, GL_COMPILE_STATUS) :
+		print(glGetShaderInfoLog(vs))
+	glAttachShader(program, fs)
+
+	glLinkProgram(program)
+	if GL_TRUE != glGetProgramiv(program, GL_LINK_STATUS):
+		print(glGetProgramInfoLog(program))
+
+	MVP_ID = glGetUniformLocation(program, "MVP")
+
+	return {'shader':program, 'MVP':MVP_ID}
+
+
 def carica_mesh(path):
+	shader = compile_shaders()
+
 	mesh = Wavefront(path)
 	data = np.array([])
 	for m_item in mesh.mesh_list:
@@ -32,51 +102,46 @@ def carica_mesh(path):
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-	return {'v':vertex_bufferId, 'c':color_bufferId, 'type':GL_TRIANGLES, 'len':dim}
+	identity = glm.mat4(1.0)
 
-
-def disegna_mesh(mesh, colore=None):
-	glEnableClientState(GL_VERTEX_ARRAY)
-	if colore is None:
-		glEnableClientState(GL_COLOR_ARRAY)
-
-	glBindBuffer(GL_ARRAY_BUFFER, mesh['v'])
-	glVertexPointer(3, GL_FLOAT, 0, None )
-	if colore is None:
-		glBindBuffer(GL_ARRAY_BUFFER, mesh['c'])
-		glColorPointer(3, GL_FLOAT, 0, None )
-	glBindBuffer(GL_ARRAY_BUFFER, 0)
-
-	if colore is not None:
-		glColor3fv(colore)
-	glDrawArrays(mesh['type'], 0, mesh['len'])
-
-	glDisableClientState(GL_VERTEX_ARRAY)
-	if colore is None:
-		glDisableClientState(GL_COLOR_ARRAY)
+	return shader | {'v':vertex_bufferId, 'c':color_bufferId, 'type':GL_TRIANGLES,
+					 'n_triangoli':dim, 'model_m':identity}
 
 
 animation_angle = 0
-def disegna(zoom, rotx, roty, animate, wireframe, mesh):
+def disegna(zoom, rotx, roty, animate, view_m, proj_m, mesh):
 	glClearColor(0,0,0,1)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-	glLoadIdentity()
-	glPushMatrix()
-
-	glTranslatef(0, 0, zoom)
-	glTranslatef(0, 0, -5)
-	glRotatef(-rotx, 1, 0, 0)
-	glRotatef(-roty, 0, 1, 0)
+	MVP = proj_m * view_m
+	MVP = glm.translate(MVP, glm.vec3(0, 0, -5+zoom))
+	MVP = glm.rotate(MVP, glm.radians(-rotx), glm.vec3(1, 0, 0))
+	MVP = glm.rotate(MVP, glm.radians(-roty), glm.vec3(0, 1, 0))
 
 	global animation_angle
-	glRotatef(animation_angle, 0, 1, 0)
+	MVP = glm.rotate(MVP, glm.radians(animation_angle), glm.vec3(0, 1, 0))
 	if animate:
 		animation_angle += 1
+	MVP = MVP * mesh['model_m']
 
-	disegna_mesh(mesh)
+	glUseProgram(mesh['shader'])
+	glUniformMatrix4fv(mesh['MVP'], 1, GL_FALSE, glm.value_ptr(MVP))
 
-	glPopMatrix()
+	glEnableVertexAttribArray(0)
+	glBindBuffer(GL_ARRAY_BUFFER, mesh['v'])
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, None)
+
+	glEnableVertexAttribArray(1)
+	glBindBuffer(GL_ARRAY_BUFFER, mesh['c'])
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, None)
+
+	glDrawArrays(GL_TRIANGLES, 0, mesh['n_triangoli']*3)
+
+	glDisableVertexAttribArray(0)
+	glDisableVertexAttribArray(1)
+
+	glUseProgram(0)
+	glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 	pygame.display.flip()
 
@@ -86,8 +151,10 @@ def main():
 	display = (500, 500)
 	screen = pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
 
-	glMatrixMode(GL_PROJECTION)
-	gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
+	proj_m = glm.perspective(glm.radians(45), display[0]/display[1], 0.1, 50.0)
+	view_m = glm.lookAt(glm.vec3(0,0,0), # Camera is at (0,0,0), in World Space
+						glm.vec3(0,0,-1), #and looks at the (0.0.0))
+						glm.vec3(0,1,0) ) #Head is up (set to 0,-1,0 to look upside-down)
 
 	glEnable(GL_CULL_FACE)
 	glCullFace(GL_BACK)
@@ -95,7 +162,6 @@ def main():
 
 	mesh = carica_mesh('./mesh/box-C3F_V3F.obj')
 
-	glMatrixMode(GL_MODELVIEW)
 	zoom = 0
 	old_x, old_y, rotx, roty = 0,0,0,0
 	dragging = False
@@ -149,10 +215,7 @@ def main():
 
 			# Azione all'evento di resize della schermata
 			if event.type == pygame.VIDEORESIZE:
-				glMatrixMode(GL_PROJECTION)
-				glLoadIdentity()
-				gluPerspective(45, float(event.w)/event.h, 0.1, 50.0)
-				glMatrixMode(GL_MODELVIEW)
+				proj_m = glm.perspective(glm.radians(45), float(event.w)/event.h, 0.1, 50.0)
 
 			# Attivazione wireframe
 			if event.type == pygame.KEYUP and event.unicode == 'w':
@@ -178,7 +241,7 @@ def main():
 					glEnable(GL_DEPTH_TEST)
 				dept_test = not dept_test
 
-		disegna(zoom, rotx, roty, animate, wireframe, mesh)
+		disegna(zoom, rotx, roty, animate, view_m, proj_m, mesh)
 		clock.tick(30)
 
 

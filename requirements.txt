@@ -2,5 +2,6 @@ numpy
 pygame
 pyglet
 PyWavefront
-./PyOpenGL-3.1.5-cp38-cp38-win_amd64.whl
-./PyOpenGL_accelerate-3.1.5-cp38-cp38-win_amd64.whl
+PyGLM
+./PyOpenGL-3.1.5-cp39-cp39-win_amd64.whl
+./PyOpenGL_accelerate-3.1.5-cp39-cp39-win_amd64.whl
